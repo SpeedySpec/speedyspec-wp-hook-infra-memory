@@ -1,6 +1,6 @@
 {
     "name": "speedyspec/speedyspec-wp-hook-infra-memory",
-    "version": "0.0.0",
+    "version": "0.0.3",
     "description": "SpeedySpec Rewrite of WordPress - Hook API Infrastructure Memory Package ",
     "type": "library",
     "license": "BSD-3-Clause",
