@@ -1,0 +1,81 @@
+name: PHP Package Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, curl, json
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Check for tests
+        id: check-tests
+        run: |
+          if [ -d "tests" ] && [ "$(find tests -name '*.php' | head -1)" ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Pest tests
+        if: steps.check-tests.outputs.has_tests == 'true'
+        run: vendor/bin/pest
+
+  release-please:
+    name: Release Please
+    needs: test
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Debug outputs
+        run: |
+          echo "release_created: ${{ steps.release.outputs.release_created }}"
+          echo "tag_name: ${{ steps.release.outputs.tag_name }}"
+          echo "version: ${{ steps.release.outputs.version }}"
+
+  packagist:
+    name: Update Packagist
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Packagist
+        run: |
+          curl -XPOST -H "Content-Type: application/json" \
+            "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
+            -d '{"repository":{"url":"${{ github.server_url }}/${{ github.repository }}"}}'
