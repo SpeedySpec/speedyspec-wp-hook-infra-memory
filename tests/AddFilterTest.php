@@ -6,7 +6,6 @@ use SpeedySpec\WP\Hook\Domain\Entities\ArrayHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\ObjectHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\StringHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Services\CurrentHookService;
-use SpeedySpec\WP\Hook\Domain\ValueObject\HookInvokableOption;
 use SpeedySpec\WP\Hook\Infra\Memory\Services\MemoryHookSubject;
 
 covers(MemoryHookSubject::class);
@@ -15,10 +14,9 @@ describe('MemoryHookSubject::add()', function () {
     test('can add filter with function callback', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
-        $callback = new StringHookInvoke('strtoupper');
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback = new StringHookInvoke('strtoupper', 1);
 
-        $subject->add($callback, $options);
+        $subject->add($callback);
         $result = $subject->filter('hello');
 
         expect($result)->toBe('HELLO');
@@ -28,10 +26,9 @@ describe('MemoryHookSubject::add()', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
         $mock = createMockAction();
-        $callback = new ArrayHookInvoke([$mock, 'filter']);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 2);
+        $callback = new ArrayHookInvoke([$mock, 'filter'], 1);
 
-        $subject->add($callback, $options);
+        $subject->add($callback);
         $subject->filter('test_value');
 
         expect($mock->getCallCount())->toBe(1);
@@ -48,10 +45,9 @@ describe('MemoryHookSubject::add()', function () {
             }
         };
 
-        $callback = new ArrayHookInvoke([$staticClass::class, 'transform']);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback = new ArrayHookInvoke([$staticClass::class, 'transform'], 1);
 
-        $subject->add($callback, $options);
+        $subject->add($callback);
         $result = $subject->filter('test');
 
         expect($result)->toBe('test_transformed');
@@ -61,10 +57,9 @@ describe('MemoryHookSubject::add()', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
         $closure = fn(string $value): string => $value . '_closure';
-        $callback = new ObjectHookInvoke($closure);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback = new ObjectHookInvoke($closure, 1);
 
-        $subject->add($callback, $options);
+        $subject->add($callback);
         $result = $subject->filter('test');
 
         expect($result)->toBe('test_closure');
@@ -74,28 +69,27 @@ describe('MemoryHookSubject::add()', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
 
-        $callback1 = new ObjectHookInvoke(fn($v) => $v . '_first');
-        $callback2 = new ObjectHookInvoke(fn($v) => $v . '_second');
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback1 = new ObjectHookInvoke(fn($v) => $v . '_first', 1);
+        $callback2 = new ObjectHookInvoke(fn($v) => $v . '_second', 1);
 
-        $subject->add($callback1, $options);
-        $subject->add($callback2, $options);
+        $subject->add($callback1);
+        $subject->add($callback2);
 
         $result = $subject->filter('test');
 
-        expect($result)->toContain('_first')
-            ->or->toContain('_second');
+        // Both filters at same priority should execute in registration order
+        expect($result)->toBe('test_first_second');
     });
 
     test('can add two filters with different priorities', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
 
-        $callback1 = new ObjectHookInvoke(fn($v) => $v . '_priority10');
-        $callback2 = new ObjectHookInvoke(fn($v) => $v . '_priority5');
+        $callback1 = new ObjectHookInvoke(fn($v) => $v . '_priority10', 10);
+        $callback2 = new ObjectHookInvoke(fn($v) => $v . '_priority5', 5);
 
-        $subject->add($callback1, new HookInvokableOption(priority: 10, acceptedArgs: 1));
-        $subject->add($callback2, new HookInvokableOption(priority: 5, acceptedArgs: 1));
+        $subject->add($callback1);
+        $subject->add($callback2);
 
         $result = $subject->filter('test');
 
@@ -110,19 +104,19 @@ describe('MemoryHookSubject::add()', function () {
         $callbackA = new ObjectHookInvoke(function ($v) use (&$callOrder) {
             $callOrder[] = 'a';
             return $v;
-        });
+        }, 10);
         $callbackB = new ObjectHookInvoke(function ($v) use (&$callOrder) {
             $callOrder[] = 'b';
             return $v;
-        });
+        }, 5);
         $callbackC = new ObjectHookInvoke(function ($v) use (&$callOrder) {
             $callOrder[] = 'c';
             return $v;
-        });
+        }, 8);
 
-        $subject->add($callbackA, new HookInvokableOption(priority: 10, acceptedArgs: 1));
-        $subject->add($callbackB, new HookInvokableOption(priority: 5, acceptedArgs: 1));
-        $subject->add($callbackC, new HookInvokableOption(priority: 8, acceptedArgs: 1));
+        $subject->add($callbackA);
+        $subject->add($callbackB);
+        $subject->add($callbackC);
 
         $subject->filter('test');
 

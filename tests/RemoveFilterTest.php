@@ -5,7 +5,6 @@ declare(strict_types=1);
 use SpeedySpec\WP\Hook\Domain\Entities\ArrayHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\ObjectHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Services\CurrentHookService;
-use SpeedySpec\WP\Hook\Domain\ValueObject\HookInvokableOption;
 use SpeedySpec\WP\Hook\Infra\Memory\Services\MemoryHookSubject;
 
 covers(MemoryHookSubject::class);
@@ -19,11 +18,10 @@ describe('MemoryHookSubject::remove()', function () {
         $callback = new ObjectHookInvoke(function ($v) use (&$callCount) {
             $callCount++;
             return $v . '_modified';
-        });
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        }, 1);
 
-        $subject->add($callback, $options);
-        $subject->remove($callback, $options);
+        $subject->add($callback);
+        $subject->remove($callback);
         $subject->filter('test');
 
         expect($callCount)->toBe(0);
@@ -33,11 +31,10 @@ describe('MemoryHookSubject::remove()', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
         $mock = createMockAction();
-        $callback = new ArrayHookInvoke([$mock, 'filter']);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 2);
+        $callback = new ArrayHookInvoke([$mock, 'filter'], 1);
 
-        $subject->add($callback, $options);
-        $subject->remove($callback, $options);
+        $subject->add($callback);
+        $subject->remove($callback);
         $subject->filter('test_value');
 
         expect($mock->getCallCount())->toBe(0);
@@ -57,11 +54,10 @@ describe('MemoryHookSubject::remove()', function () {
             }
         };
 
-        $callback = new ArrayHookInvoke([$staticClass::class, 'transform']);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback = new ArrayHookInvoke([$staticClass::class, 'transform'], 1);
 
-        $subject->add($callback, $options);
-        $subject->remove($callback, $options);
+        $subject->add($callback);
+        $subject->remove($callback);
         $result = $subject->filter('test');
 
         expect($staticClass::$callCount)->toBe(0);
@@ -78,16 +74,15 @@ describe('MemoryHookSubject::remove()', function () {
         $callback1 = new ObjectHookInvoke(function ($v) use (&$callCount1) {
             $callCount1++;
             return $v;
-        });
+        }, 1);
         $callback2 = new ObjectHookInvoke(function ($v) use (&$callCount2) {
             $callCount2++;
             return $v;
-        });
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        }, 1);
 
-        $subject->add($callback1, $options);
-        $subject->add($callback2, $options);
-        $subject->remove($callback1, $options);
+        $subject->add($callback1);
+        $subject->add($callback2);
+        $subject->remove($callback1);
         $subject->filter('test');
 
         expect($callCount1)->toBe(0);
@@ -104,15 +99,15 @@ describe('MemoryHookSubject::remove()', function () {
         $callback1 = new ObjectHookInvoke(function ($v) use (&$callCount1) {
             $callCount1++;
             return $v;
-        });
+        }, 1);
         $callback2 = new ObjectHookInvoke(function ($v) use (&$callCount2) {
             $callCount2++;
             return $v;
-        });
+        }, 2);
 
-        $subject->add($callback1, new HookInvokableOption(priority: 1, acceptedArgs: 1));
-        $subject->add($callback2, new HookInvokableOption(priority: 2, acceptedArgs: 1));
-        $subject->remove($callback1, new HookInvokableOption(priority: 1, acceptedArgs: 1));
+        $subject->add($callback1);
+        $subject->add($callback2);
+        $subject->remove($callback1);
         $subject->filter('test');
 
         expect($callCount1)->toBe(0);
@@ -127,15 +122,15 @@ describe('MemoryHookSubject::remove()', function () {
         $callback1 = new ObjectHookInvoke(function ($v) use (&$executionOrder) {
             $executionOrder[] = '1';
             return $v . '1';
-        });
+        }, 10);
 
         $callback2 = new ObjectHookInvoke(function ($v) use (&$executionOrder, $subject, &$callback2) {
             $executionOrder[] = '2';
             return $v . '2';
-        });
+        }, 11);
 
-        $subject->add($callback1, new HookInvokableOption(priority: 10, acceptedArgs: 1));
-        $subject->add($callback2, new HookInvokableOption(priority: 11, acceptedArgs: 1));
+        $subject->add($callback1);
+        $subject->add($callback2);
 
         $result = $subject->filter('');
 
@@ -148,11 +143,10 @@ describe('remove filter edge cases', function () {
     test('removing non-existent filter does not throw', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
-        $callback = new ObjectHookInvoke(fn($v) => $v);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback = new ObjectHookInvoke(fn($v) => $v, 1);
 
         // Should not throw
-        $subject->remove($callback, $options);
+        $subject->remove($callback);
 
         expect(true)->toBeTrue();
     });
@@ -166,11 +160,10 @@ describe('remove filter edge cases', function () {
             $callCount++;
             return $v . '_closure';
         };
-        $callback = new ObjectHookInvoke($closure);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 1);
+        $callback = new ObjectHookInvoke($closure, 1);
 
-        $subject->add($callback, $options);
-        $subject->remove($callback, $options);
+        $subject->add($callback);
+        $subject->remove($callback);
         $subject->filter('test');
 
         expect($callCount)->toBe(0);

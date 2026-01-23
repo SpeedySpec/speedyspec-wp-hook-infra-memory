@@ -5,7 +5,6 @@ declare(strict_types=1);
 use SpeedySpec\WP\Hook\Domain\Entities\ArrayHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\ObjectHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Services\CurrentHookService;
-use SpeedySpec\WP\Hook\Domain\ValueObject\HookInvokableOption;
 use SpeedySpec\WP\Hook\Infra\Memory\Services\MemoryHookSubject;
 
 covers(MemoryHookSubject::class);
@@ -15,10 +14,9 @@ describe('MemoryHookSubject "all" hook behavior', function () {
         $currentHookService = new CurrentHookService();
         $subject = new MemoryHookSubject($currentHookService);
         $mock = createMockAction();
-        $callback = new ArrayHookInvoke([$mock, 'action']);
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 2);
+        $callback = new ArrayHookInvoke([$mock, 'action'], 1);
 
-        $subject->add($callback, $options);
+        $subject->add($callback);
 
         $subject->dispatch('all_arg');
         $subject->dispatch('all_arg');
@@ -33,10 +31,9 @@ describe('MemoryHookSubject "all" hook behavior', function () {
 
         $callback = new ObjectHookInvoke(function (...$args) use (&$receivedArgs) {
             $receivedArgs = $args;
-        });
-        $options = new HookInvokableOption(priority: 1, acceptedArgs: 3);
+        }, 1);
 
-        $subject->add($callback, $options);
+        $subject->add($callback);
         $subject->dispatch('arg1', 'arg2', 'arg3');
 
         expect($receivedArgs)->toBe(['arg1', 'arg2', 'arg3']);
@@ -49,13 +46,13 @@ describe('MemoryHookSubject "all" hook behavior', function () {
 
         $callback1 = new ObjectHookInvoke(function () use (&$callOrder) {
             $callOrder[] = 'first';
-        });
+        }, 10);
         $callback2 = new ObjectHookInvoke(function () use (&$callOrder) {
             $callOrder[] = 'second';
-        });
+        }, 5);
 
-        $subject->add($callback1, new HookInvokableOption(priority: 10, acceptedArgs: 0));
-        $subject->add($callback2, new HookInvokableOption(priority: 5, acceptedArgs: 0));
+        $subject->add($callback1);
+        $subject->add($callback2);
 
         $subject->dispatch();
 
