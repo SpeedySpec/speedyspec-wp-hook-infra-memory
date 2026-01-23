@@ -7,6 +7,7 @@ use SpeedySpec\WP\Hook\Domain\Contracts\UseCases\LegacyHasActionUseCaseInterface
 use SpeedySpec\WP\Hook\Domain\Entities\ArrayHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\ObjectHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\StringHookInvoke;
+use SpeedySpec\WP\Hook\Domain\ValueObject\StringHookName;
 
 class LegacyHasActionUseCase implements LegacyHasActionUseCaseInterface
 {
@@ -20,10 +21,11 @@ class LegacyHasActionUseCase implements LegacyHasActionUseCaseInterface
         false|int|null $priority = null
     ): bool {
         $hook = match (true) {
-            is_string($callback) => new StringHookInvoke($callback, $priority),
-            is_array($callback) => new ArrayHookInvoke($callback, $priority),
-            default => new ObjectHookInvoke($callback, $priority),
+            is_string($callback) => new StringHookInvoke($callback, is_int($priority) ? $priority : 10),
+            is_array($callback) => new ArrayHookInvoke($callback, is_int($priority) ? $priority : 10),
+            is_object($callback) => new ObjectHookInvoke($callback, is_int($priority) ? $priority : 10),
+            default => null,
         };
-        $this->hookContainer->hasCallbacks($hook_name, $callback, $priority);
+        return $this->hookContainer->hasCallbacks(new StringHookName($hook_name), $hook, is_int($priority) ? $priority : null);
     }
 }

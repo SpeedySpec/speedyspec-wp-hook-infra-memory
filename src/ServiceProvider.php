@@ -54,12 +54,14 @@ class ServiceProvider
     public function register(): void
     {
         $container = HookServiceContainer::getInstance();
+
         $container->add(reference: HookRunAmountInterface::class, registerCallback: fn() => new HookRunAmountService());
         $container->add(reference: CurrentHookInterface::class, registerCallback: fn() => new CurrentHookService());
         $container->add(
             reference: HookContainerInterface::class,
-            registerCallback: fn($c) => new MemoryHookContainer($c->get(HookRunAmountService::class), $c->get(CurrentHookService::class))
+            registerCallback: fn($c) => new MemoryHookContainer($c->get(HookRunAmountInterface::class), $c->get(CurrentHookInterface::class))
         );
+
         $container->add(
             reference: LegacyAddActionUseCaseInterface::class,
             registerCallback: fn ($c) => new LegacyAddActionUseCase($c->get(HookContainerInterface::class))
@@ -70,11 +72,11 @@ class ServiceProvider
         );
         $container->add(
             reference: LegacyCurrentActionUseCaseInterface::class,
-            registerCallback: fn ($c) => new LegacyCurrentActionUseCase($c->get(CurrentHookService::class))
+            registerCallback: fn ($c) => new LegacyCurrentActionUseCase($c->get(CurrentHookInterface::class))
         );
         $container->add(
             reference: LegacyCurrentFilterUseCaseInterface::class,
-            registerCallback: fn ($c) => new LegacyCurrentFilterUseCase($c->get(CurrentHookService::class))
+            registerCallback: fn ($c) => new LegacyCurrentFilterUseCase($c->get(CurrentHookInterface::class))
         );
         $container->add(
             reference: LegacyDidActionUseCaseInterface::class,

@@ -10,8 +10,11 @@ use SpeedySpec\WP\Hook\Domain\Contracts\HookFilterInterface;
 use SpeedySpec\WP\Hook\Domain\Contracts\HookInvokableInterface;
 use SpeedySpec\WP\Hook\Domain\Contracts\HookNameInterface;
 use SpeedySpec\WP\Hook\Domain\Services\CurrentHookService;
-use SpeedySpec\WP\Hook\Domain\ValueObject\HookInvokableOption;
+use SpeedySpec\WP\Hook\Domain\Services\HookRunAmountService;
 
+/**
+ * @since 0.0.0 speedyspec-wp-hook-infra-memory
+ */
 class MemoryHookContainer implements HookContainerInterface
 {
     private array $hooks = [];
@@ -23,36 +26,58 @@ class MemoryHookContainer implements HookContainerInterface
     }
 
     public function add(
-        HookNameInterface $name,
+        HookNameInterface $hook,
         HookInvokableInterface|HookActionInterface|HookFilterInterface $callback
     ): void {
-        $this->hooks[$name->getName()] ??= new HookSubject($this->currentHookService);
-        $this->hooks[$name->getName()]->add($callback);
+        $name = $hook->getName();
+        $this->hooks[$name] ??= new MemoryHookSubject($this->currentHookService);
+        $this->hooks[$name]->add($callback);
     }
 
     public function remove(
-        HookNameInterface $name,
+        HookNameInterface $hook,
         HookInvokableInterface|HookActionInterface|HookFilterInterface $callback
     ): void {
-        $this->hooks[$hook->getName()] ??= new HookSubject($this->currentHookService);
-        $this->hooks[$hook->getName()]->remove($callback);
+        $name = $hook->getName();
+        $this->hooks[$name] ??= new MemoryHookSubject($this->currentHookService);
+        $this->hooks[$name]->remove($callback);
     }
 
-    public function dispatch(HookNameInterface $hook, ...$args): void
+    public function removeAll( HookNameInterface $hook, ?int $priority = null,): void
     {
-        $this->currentHookService->addHook($hook->getName());
-        $this->hooks[$hook->getName()] ??= new HookSubject($this->currentHookService);
-        $this->hooks[$hook->getName()]->dispatch(...$args);
-        $this->hookRunAmountService->incrementRunAmount($hook);
-        $this->currentHookService->removeHook($hook->getName());
+        $name = $hook->getName();
+        $this->hooks[$name] ??= new MemoryHookSubject($this->currentHookService);
+        $this->hooks[$name]->removeAll($priority);
     }
 
-    public function filter(HookNameInterface $hook, mixed $value, ...$args): mixed
+    public function dispatch( HookNameInterface $hook, ...$args ): void
     {
-        $this->currentHookService->addHook($hook->getName());
-        $this->hooks[$hook->getName()] ??= new HookSubject($this->currentHookService);
-        $this->hooks[$hook->getName()]->filter($value, ...$args);
+        $name = $hook->getName();
+        $this->currentHookService->addHook($name);
+        $this->hooks[$name] ??= new MemoryHookSubject($this->currentHookService);
+        $this->hooks[$name]->dispatch(...$args);
         $this->hookRunAmountService->incrementRunAmount($hook);
-        $this->currentHookService->removeHook($hook->getName());
+        $this->currentHookService->removeHook();
+    }
+
+    public function filter( HookNameInterface $hook, mixed $value, ...$args ): mixed
+    {
+        $name = $hook->getName();
+        $this->currentHookService->addHook($name);
+        $this->hooks[$name] ??= new MemoryHookSubject($this->currentHookService);
+        $value = $this->hooks[$name]->filter($value, ...$args);
+        $this->hookRunAmountService->incrementRunAmount($hook);
+        $this->currentHookService->removeHook();
+        return $value;
+    }
+
+    public function hasCallbacks(
+        HookNameInterface $hook,
+        HookInvokableInterface|HookActionInterface|HookFilterInterface|null $callback = null,
+        ?int $priority = null,
+    ): bool {
+        $name = $hook->getName();
+        $this->hooks[$name] ??= new MemoryHookSubject($this->currentHookService);
+        return $this->hooks[$name]->hasCallbacks($callback, $priority);
     }
 }

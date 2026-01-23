@@ -14,6 +14,6 @@ class LegacyDidFilterUseCase implements LegacyDidFilterUseCaseInterface
 
     public function didFilter(string $name): int
     {
-        $this->hookRunAmount->getRunAmount( new StringHookName( $name ) );
+        return $this->hookRunAmount->getRunAmount( new StringHookName( $name ) );
     }
 }

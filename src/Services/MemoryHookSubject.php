@@ -8,15 +8,26 @@ use ReturnTypeWillChange;
 use SpeedySpec\WP\Hook\Domain\Contracts\HookActionInterface;
 use SpeedySpec\WP\Hook\Domain\Contracts\HookFilterInterface;
 use SpeedySpec\WP\Hook\Domain\Contracts\HookInvokableInterface;
+use SpeedySpec\WP\Hook\Domain\Contracts\HookPriorityInterface;
 use SpeedySpec\WP\Hook\Domain\Contracts\HookSubjectInterface;
-use SpeedySpec\WP\Hook\Domain\Contracts\UseCases\HookPriorityInterface;
 use SpeedySpec\WP\Hook\Domain\Services\CurrentHookService;
 
+/**
+ * @since 0.0.0 speedyspec-wp-hook-infra-memory
+ */
 class MemoryHookSubject implements HookSubjectInterface
 {
+    /**
+     * @since 0.0.0 speedyspec-wp-hook-infra-memory
+     */
     private array $hooks = [];
 
-    private array $priorities = [];
+    /**
+     * @since 0.0.0 speedyspec-wp-hook-infra-memory
+     */
+    private array $callbackToPriorities = [];
+
+    private array $prioritiesToCallback = [];
 
     private array $sorted = [];
 
@@ -29,19 +40,40 @@ class MemoryHookSubject implements HookSubjectInterface
 
     public function add( HookInvokableInterface|HookActionInterface|HookFilterInterface $callback ): void
     {
-        $this->hooks[$callback->getName()] = $callback;
-        $this->priorities[$callback->getName()] = match (true) {
-            $callback instanceof HookPriorityInterface => $callback->getPriority(),
-            default => 10,
-        };
+        $name = $callback->getName();
+        $priority = $callback instanceof HookPriorityInterface ? $callback->getPriority() : 10;
+        $this->hooks[$name] = $callback;
+        $this->callbackToPriorities[$name] = $priority;
+        $this->prioritiesToCallback[$priority][$name] = true;
         $this->needsSorting = true;
     }
 
     public function remove( HookInvokableInterface|HookActionInterface|HookFilterInterface $callback ): void
     {
-        unset($this->hooks[$callback->getName()]);
-        unset($this->priorities[$callback->getName()]);
+        $name = $callback->getName();
+        $priority = $callback instanceof HookPriorityInterface ? $callback->getPriority() : 10;
+        unset($this->hooks[$name]);
+        unset($this->prioritiesToCallback[$priority][$name]);
+        unset($this->callbackToPriorities[$name]);
         $this->needsSorting = true;
+    }
+
+    public function removeAll(?int $priority = null): void
+    {
+        if (null === $priority) {
+            $this->hooks = [];
+            $this->sorted = [];
+            $this->callbackToPriorities = [];
+            $this->prioritiesToCallback = [];
+            $this->needsSorting = false;
+        } else {
+            foreach (($this->prioritiesToCallback[$priority] ?? []) as $name => $_) {
+                unset($this->hooks[ $name ]);
+                unset($this->callbackToPriorities[ $name ]);
+            }
+            $this->prioritiesToCallback[ $priority ] = [];
+            $this->needsSorting = true;
+        }
     }
 
     public function dispatch(...$args,): void
@@ -52,7 +84,7 @@ class MemoryHookSubject implements HookSubjectInterface
 
         foreach ($this->sorted as $hook) {
             $this->currentHookService->addCallback($hook->getName());
-            $hook->invoke(...$args);
+            $hook(...$args);
             $this->currentHookService->removeCallback();
         }
     }
@@ -60,17 +92,29 @@ class MemoryHookSubject implements HookSubjectInterface
     #[ReturnTypeWillChange]
     public function filter(mixed $value, ...$args): mixed
     {
-        if (empty($this->sorted)) {
+        if ($this->needsSorting) {
             $this->sort();
         }
 
         foreach ($this->sorted as $name => $hook) {
             $this->currentHookService->addCallback($name);
-            $value = $hook->invoke($value, ...$args);
+            $value = $hook($value, ...$args);
             $this->currentHookService->removeCallback();
         }
 
         return $value;
+    }
+
+    public function hasCallbacks(
+        HookInvokableInterface|HookActionInterface|HookFilterInterface|null $callback = null,
+        ?int $priority = null
+    ): bool {
+        return match (true) {
+            $callback === null && $priority === null => ! empty($this->hooks),
+            $callback !== null && $priority === null => isset($this->hooks[$callback->getName()]),
+            $callback === null && $priority !== null => ! empty($this->prioritiesToCallback[$priority]),
+            default => isset($this->callbackToPriorities[$callback->getName()]) && $this->callbackToPriorities[$callback->getName()] === $priority,
+        };
     }
 
     public function sort(): void
@@ -78,7 +122,7 @@ class MemoryHookSubject implements HookSubjectInterface
         $sorting = $this->hooks;
 
         uksort($sorting, function ($a, $b) {
-            return ($this->priorities[$a] ?? 10) <=> ($this->priorities[$b] ?? 10);
+            return ($this->callbackToPriorities[$a] ?? 10) <=> ($this->callbackToPriorities[$b] ?? 10);
         });
 
         $this->sorted = $sorting;

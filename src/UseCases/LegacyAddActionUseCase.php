@@ -7,7 +7,6 @@ use SpeedySpec\WP\Hook\Domain\Contracts\UseCases\LegacyAddActionUseCaseInterface
 use SpeedySpec\WP\Hook\Domain\Entities\ArrayHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\ObjectHookInvoke;
 use SpeedySpec\WP\Hook\Domain\Entities\StringHookInvoke;
-use SpeedySpec\WP\Hook\Domain\HookServiceContainer;
 use SpeedySpec\WP\Hook\Domain\ValueObject\StringHookName;
 
 class LegacyAddActionUseCase implements LegacyAddActionUseCaseInterface
@@ -23,9 +22,7 @@ class LegacyAddActionUseCase implements LegacyAddActionUseCaseInterface
             is_array($callback) => new ArrayHookInvoke($callback, $priority),
             default => new ObjectHookInvoke($callback, $priority),
         };
-        HookServiceContainer::getInstance()
-            ->get( HookContainerInterface::class )
-            ->add( new StringHookName($hook_name), $hook );
+        $this->hookContainer->add( new StringHookName($hook_name), $hook );
 
         return true;
     }

@@ -21,11 +21,11 @@ class LegacyHasFilterUseCase implements LegacyHasFilterUseCaseInterface
         false|int|null $priority = null
     ): bool {
         $hook = match (true) {
-            is_string($callback) => new StringHookInvoke($callback, $priority),
-            is_array($callback) => new ArrayHookInvoke($callback, $priority),
-            is_object($callback) => new ObjectHookInvoke($callback, $priority),
+            is_string($callback) => new StringHookInvoke($callback, is_int($priority) ? $priority : 10),
+            is_array($callback) => new ArrayHookInvoke($callback, is_int($priority) ? $priority : 10),
+            is_object($callback) => new ObjectHookInvoke($callback, is_int($priority) ? $priority : 10),
             default => null,
         };
-        $this->hookContainer->hasCallbacks(new StringHookName($hook_name), $hook, is_int($priority) ? $priority : null);
+        return $this->hookContainer->hasCallbacks(new StringHookName($hook_name), $hook, is_int($priority) ? $priority : null);
     }
 }

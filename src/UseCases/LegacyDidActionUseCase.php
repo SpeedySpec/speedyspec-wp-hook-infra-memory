@@ -14,6 +14,6 @@ class LegacyDidActionUseCase implements LegacyDidActionUseCaseInterface
 
     public function didAction(string $name): int
     {
-        $this->hookRunAmount->getRunAmount( new StringHookName( $name ) );
+        return $this->hookRunAmount->getRunAmount( new StringHookName( $name ) );
     }
 }
